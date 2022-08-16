@@ -1,34 +1,65 @@
 package mongo
 
 import (
-	// "context"
-	// "time"
-
+	"context"
+	"errors"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"sync"
+
 	// "go.mongodb.org/mongo-driver/mongo/options"
 	// "go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
-var mongClients map[string]*mongo.Client
-
-func InitClient(name string, cli *mongo.Client) {
-	if cli == nil {
-		panic("set mongoClient err, mongoClient = nil")
-	}
-	if name == "" {
-		panic("set mongoClient err, name = '' ")
-	}
-
-	mongClients[name] = cli
+type Client struct {
+	Cli     *mongo.Client
+	Collect map[string]*MCollection
+	mu      sync.Mutex
 }
 
-func GetClient(name string) *mongo.Client {
-
-	return mongClients[name]
+func (c *Client) Collection(keyName string) *MCollection {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.Collect[keyName]
 }
 
-func init() {
-	mongClients = map[string]*mongo.Client{}
+// keyName is unique name fo client
+func (c *Client) AddCollection(keyName, DB, colleName string) error {
+	if keyName == "" {
+		return errors.New("keyName can not '' ")
+	}
+	if DB == "" {
+		return errors.New("DB can not '' ")
+	}
+	if colleName == "" {
+		return errors.New("colleName can not '' ")
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	db := c.Cli.Database(DB)
+	mc := &MCollection{
+		col: db.Collection(colleName),
+	}
+	c.Collect[keyName] = mc
+	return nil
+}
+
+func New(ctx context.Context, uri string) (*Client, error) {
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	if err != nil {
+		return nil, err
+	}
+	err = client.Ping(ctx, readpref.Primary())
+	if err != nil {
+		return nil, err
+	}
+	return &Client{
+		client,
+		map[string]*MCollection{},
+		sync.Mutex{},
+	}, err
 }
 
 //************** conn example ********************

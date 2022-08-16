@@ -3,8 +3,6 @@ package mongo
 import (
 	"context"
 	"fmt"
-	"sync"
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -20,44 +18,20 @@ var (
 type M bson.M
 
 type MCollection struct {
-	cli *mongo.Client
-	db  *mongo.Database
 	col *mongo.Collection
-	m   sync.RWMutex
 }
 
-func NewMCollection(client *mongo.Client, DBName string, CollectionName string) *MCollection {
-	if client == nil {
-		panic("func_NewMCollection_err||init client is nil")
-	}
-	db := client.Database(DBName)
-
-	if db == nil {
-		panic("func_NewMCollection_err||init Database err")
-	}
-	mc := &MCollection{
-		cli: client,
-		db:  db,
-		col: db.Collection(CollectionName),
-	}
-	if mc == nil {
-		panic("func_NewMCollection_err||init Collection err")
-	}
-	return mc
-}
-
-func (mc *MCollection) clone() *mongo.Collection {
-
-	mc.m.Lock()
-	c, err := mc.col.Clone()
-	if err != nil {
-		mc.m.Unlock()
-		return nil
-	}
-	mc.m.Unlock()
-	return c
-
-}
+//func NewMCollection(client *mongo.Client, DBName string, CollectionName string) *MCollection {
+//	if client == nil {
+//		//return nil,errors.New("NewMCollection err , init client is nil")
+//		return nil
+//	}
+//	db := client.Database(DBName)
+//	mc := &MCollection{
+//		col: db.Collection(CollectionName),
+//	}
+//	return mc
+//}
 
 func (mc *MCollection) InsertOne(ctx context.Context, document interface{}) (bool, error) {
 	_, err := mc.clone().InsertOne(ctx, document)
@@ -211,6 +185,6 @@ func (mc *MCollection) Aggregate(ctx context.Context, pipeline interface{}, resu
 }
 
 //use base MongoCollection
-func (mc *MCollection) Clone() *mongo.Collection {
-	return mc.clone()
+func (mc *MCollection) clone() *mongo.Collection {
+	return mc.col
 }

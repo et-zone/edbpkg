@@ -11,9 +11,6 @@ import (
 
 	m "github.com/et-zone/edbpkg/mongo"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 var Name = "MM"
@@ -21,8 +18,9 @@ var DBName = "test"
 var Collection = "col"
 var c *m.MCollection
 
-func main2() {
-	initClient()
+func main() {
+	Init()
+	//initClient()
 	// Test_InsertOne()
 	// Test_InsertAll()
 	// Test_FindOne()
@@ -36,33 +34,24 @@ func main2() {
 	// Test_Aggregate()
 	// Test_AggregateNew()
 
-	Test_IncByID()
+	//Test_IncByID()
 }
 
-func initClient() {
-	// Replace the uri string with your MongoDB deployment's connection string.
-	// uri := "mongodb+srv://<username>:<password>@<cluster-address>/test?w=majority"
-
+func Init(){
 	uri := "mongodb://gzy:gzy@localhost:27717/admin?w=majority"
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-
-	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
-	if err != nil {
-		panic(err)
+	ctx:=context.TODO()
+	cli,_:=m.New(ctx,uri)
+	cli.AddCollection(Collection,DBName,Collection)
+	c=cli.Collection(Collection)
+	t:=time.Now().Add(time.Second)
+	cc:=0
+	for{
+		cc++
+		if t.Before(time.Now()){
+			break
+		}
 	}
-	err = client.Ping(ctx, readpref.Primary())
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("conn succ")
-	m.InitClient(Name, client)
-
-	// c:=m.GetClient(Name).Client.Database(DBName).Collection(Collection)
-	// c := m.GetClient(Name).Database(DBName).Collection(Collection)
-	c = m.NewMCollection(m.GetClient(Name), DBName, Collection)
-
+	fmt.Println(cc)
 }
 
 func Test_InsertOne() {

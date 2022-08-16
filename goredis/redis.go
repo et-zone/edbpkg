@@ -26,6 +26,14 @@ func (r *RedisClient) Get(ctx context.Context, key string) (string, error) {
 
 }
 
+func (r *RedisClient) Del(ctx context.Context, keys ...string) (int64, error) {
+	if r.clientFlag == CLIENT_OR_SENTINEL {
+		return r.client.Del(ctx, keys...).Result()
+	} else {
+		return r.clusterClient.Del(ctx, keys...).Result()
+	}
+}
+
 /*
 Get Vals,
 - keys like ["a","b","c","d"]  , vals like [aa,bb,cc,nil] ,val is nil where key not exit
