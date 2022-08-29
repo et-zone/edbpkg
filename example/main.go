@@ -8,9 +8,6 @@ import (
 	r "github.com/et-zone/edbpkg/goredis"
 	m "github.com/et-zone/edbpkg/mongo"
 	"github.com/go-redis/redis/v8"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 var Name = "B"
@@ -21,8 +18,9 @@ var Collection = "col"
 var c *m.MCollection
 
 func main() {
-	// Resid_Test()
-	Mongo_Test()
+	//Resid_Test()
+	//Mongo_Test()
+	RedisLockTest()
 }
 
 func Resid_Test() {
@@ -32,13 +30,41 @@ func Resid_Test() {
 		DB:       1,  // use default DB
 	})
 	r.InitClient(Name, client)
-	score, err := r.GetClient(Name).SAdd(context.TODO(), "sg", "aaa", "bbb", "ccc", "ddd", "eee")
-	if err != nil {
-		fmt.Println("err=", err.Error())
-	}
-	fmt.Println(score)
 
+	ok,_:=r.GetClient(Name).Set(context.TODO(),"kkkk","vvvv")
+	fmt.Println(ok)
 }
+
+
+func RedisLockTest(){
+	client := redis.NewClient(&redis.Options{
+		Addr:     "49.232.190.114:63790",
+		Password: "", // no password set
+		DB:       1,  // use default DB
+	})
+	r.InitClient(Name, client)
+	//ok,err:=r.Lock(context.TODO(),r.GetClient(Name),"bbbbbbb","123aaa",20)
+	//if err != nil {
+	//	fmt.Println("err=", err.Error())
+	//}
+	//fmt.Println("Lock",ok)
+
+
+	//ok,err:=r.UnLock(context.TODO(),r.GetClient(Name),"bbbbbbb","123aaa")
+	//if err != nil {
+	//	fmt.Println("err=", err.Error())
+	//}
+	//fmt.Println("UnLock",ok)
+
+	ctx:=context.TODO()
+	rmutx:=r.NewMutex(r.GetClient(Name),time.Duration(time.Second*5),10)
+
+	rmutx.Lock(ctx,"aa123","aa456",12)
+
+	time.Sleep(time.Second*30)
+}
+
+
 
 func Mongo_Test() {
 	initMongoClient()
@@ -65,19 +91,15 @@ func initMongoClient() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
 	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	client, err := 	m.New(ctx,uri)
 	if err != nil {
 		panic(err)
 	}
-	err = client.Ping(ctx, readpref.Primary())
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("conn succ")
-	m.InitClient(Name, client)
 
+	fmt.Println("conn succ")
+
+	client.AddCollection(Name,DBName,Collection)
 	// c:=m.GetClient(Name).Client.Database(DBName).Collection(Collection)
 	// c := m.GetClient(Name).Database(DBName).Collection(Collection)
-	c = m.NewMCollection(m.GetClient(Name), DBName, Collection)
 
 }

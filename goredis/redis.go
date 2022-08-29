@@ -673,6 +673,7 @@ func (r *RedisClient) getType() int {
 // 	return r.SetNXWithExpire(ctx, key, val, expire)
 // }
 
+
 /*
  custom func ==>redisLock:
  - expireTime default 0;
