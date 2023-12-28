@@ -20,7 +20,9 @@ var c *m.MCollection
 func main() {
 	//Resid_Test()
 	//Mongo_Test()
-	RedisLockTest()
+	//RedisLockTest()
+	//RedisLockTest2()
+	RedisLockRenewalTest()
 }
 
 func Resid_Test() {
@@ -31,40 +33,50 @@ func Resid_Test() {
 	})
 	r.InitClient(Name, client)
 
-	ok,_:=r.GetClient(Name).Set(context.TODO(),"kkkk","vvvv")
+	ok, _ := r.GetClient(Name).Set(context.TODO(), "kkkk", "vvvv")
 	fmt.Println(ok)
 }
 
-
-func RedisLockTest(){
+func RedisLockTest() {
 	client := redis.NewClient(&redis.Options{
-		Addr:     "49.232.190.114:63790",
+		Addr:     "124.220.234.169:63790",
 		Password: "", // no password set
 		DB:       1,  // use default DB
 	})
 	r.InitClient(Name, client)
-	//ok,err:=r.Lock(context.TODO(),r.GetClient(Name),"bbbbbbb","123aaa",20)
-	//if err != nil {
-	//	fmt.Println("err=", err.Error())
-	//}
-	//fmt.Println("Lock",ok)
 
+	ctx := context.TODO()
+	rmutx := r.NewMutex(r.GetClient(Name), 3, 10)
+	rmutx.Lock(ctx, "aa123", 7)
 
-	//ok,err:=r.UnLock(context.TODO(),r.GetClient(Name),"bbbbbbb","123aaa")
-	//if err != nil {
-	//	fmt.Println("err=", err.Error())
-	//}
-	//fmt.Println("UnLock",ok)
+	time.Sleep(time.Second * 5)
+	rmutx.UnLock(ctx, "aa123")
+	time.Sleep(time.Second * 10)
 
-	ctx:=context.TODO()
-	rmutx:=r.NewMutex(r.GetClient(Name),time.Duration(time.Second*5),10)
-
-	rmutx.Lock(ctx,"aa123","aa456",12)
-
-	time.Sleep(time.Second*30)
 }
 
+func RedisLockRenewalTest() {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "124.220.234.169:63790",
+		Password: "", // no password set
+		DB:       1,  // use default DB
+		PoolSize: 20,
+	})
 
+	r.InitClient(Name, client)
+
+	ctx := context.TODO()
+	rmutx := r.NewMutex(r.GetClient(Name), 3, 10)
+
+	for i := 0; i < 1000; i++ {
+		rmutx.LockRenewal(ctx, fmt.Sprint("aaa%v", i+1))
+		time.Sleep(time.Millisecond)
+	}
+
+	//rmutx.UnLockRenewal(ctx, "aa123")
+	time.Sleep(time.Second * 100)
+
+}
 
 func Mongo_Test() {
 	initMongoClient()
@@ -91,14 +103,14 @@ func initMongoClient() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
 	defer cancel()
-	client, err := 	m.New(ctx,uri)
+	client, err := m.New(ctx, uri)
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Println("conn succ")
 
-	client.AddCollection(Name,DBName,Collection)
+	client.AddCollection(Name, DBName, Collection)
 	// c:=m.GetClient(Name).Client.Database(DBName).Collection(Collection)
 	// c := m.GetClient(Name).Database(DBName).Collection(Collection)
 
