@@ -17,9 +17,9 @@ import (
 var mutx = sync.Mutex{}
 
 const (
-	maxCount   int64 = 10
-	retryCount int64 = 2
-	Spe              = "||"
+	maxCount   = 10
+	retryCount = 2
+	Spe        = "||"
 )
 const (
 	luaLock   = "if redis.call('setnx',KEYS[1],ARGV[1]) == 1 then redis.call('expire',KEYS[1],ARGV[2]) return 1 else return 0 end"
@@ -159,7 +159,7 @@ func (m *Mutex) watch(ctx context.Context, key, val string) {
 					break
 				}
 
-				if failCount >= retryCount {
+				if failCount > retryCount {
 					loop = false
 					break
 				}
