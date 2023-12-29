@@ -46,7 +46,7 @@ func RedisLockTest() {
 	r.InitClient(Name, client)
 
 	ctx := context.TODO()
-	rmutx := r.NewMutex(r.GetClient(Name), 3, 10)
+	rmutx := r.NewMutex(r.GetClient(Name), 3, 5)
 	rmutx.Lock(ctx, "aa123", 7)
 
 	time.Sleep(time.Second * 5)
@@ -57,7 +57,7 @@ func RedisLockTest() {
 
 func RedisLockRenewalTest() {
 	client := redis.NewClient(&redis.Options{
-		Addr:     "124.220.234.169:63790",
+		Addr:     "192.168.1.8:6379",
 		Password: "", // no password set
 		DB:       1,  // use default DB
 		PoolSize: 20,
@@ -66,12 +66,12 @@ func RedisLockRenewalTest() {
 	r.InitClient(Name, client)
 
 	ctx := context.TODO()
-	rmutx := r.NewMutex(r.GetClient(Name), 3, 10)
-
+	rmutx := r.NewMutex(r.GetClient(Name), 3, 6)
+	t := time.Now()
 	for i := 0; i < 1000; i++ {
 		rmutx.LockRenewal(ctx, fmt.Sprint("aaa%v", i+1))
-		time.Sleep(time.Millisecond)
 	}
+	fmt.Println(time.Since(t))
 
 	//rmutx.UnLockRenewal(ctx, "aa123")
 	time.Sleep(time.Second * 100)

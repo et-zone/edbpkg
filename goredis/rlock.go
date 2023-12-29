@@ -10,14 +10,16 @@ import (
 	"runtime/debug"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 var mutx = sync.Mutex{}
 
 const (
-	maxCount = 10
-	Spe      = "||"
+	maxCount   int64 = 10
+	retryCount int64 = 2
+	Spe              = "||"
 )
 const (
 	luaLock   = "if redis.call('setnx',KEYS[1],ARGV[1]) == 1 then redis.call('expire',KEYS[1],ARGV[2]) return 1 else return 0 end"
@@ -85,6 +87,7 @@ func (m *Mutex) LockRenewal(ctx context.Context, key string) (lock bool, val str
 
 	if v.(int64) == 1 {
 		m.watch(ctx, key, val)
+		//fmt.Println(key)
 		return true, "", nil
 	}
 	return false, "", nil
@@ -108,6 +111,7 @@ func (m *Mutex) UnLockRenewal(ctx context.Context, key, val string) (bool, error
 
 func (m *Mutex) watch(ctx context.Context, key, val string) {
 	m.chMap[key] = make(chan struct{})
+
 	go func(ch chan struct{}) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -116,8 +120,7 @@ func (m *Mutex) watch(ctx context.Context, key, val string) {
 		}()
 
 		timer := time.NewTicker(time.Second * time.Duration(m.timerSecond))
-		count := maxCount
-		failCount := 0
+		count, failCount := int64(0), int64(0)
 		loop := true
 		defer func() {
 			fmt.Println("end watch")
@@ -134,29 +137,33 @@ func (m *Mutex) watch(ctx context.Context, key, val string) {
 				loop = false
 				break
 			case <-timer.C:
-				if count <= 0 {
+				if count >= maxCount {
 					loop = false
 					break
 				}
+
 				if val == "" {
 					loop = false
 					break
 				}
+
 				v, err := m.RedisClient.Eval(ctx, luaExpire, []string{key}, val, m.watchTimeSecond)
 				if err != nil {
 					fmt.Println(err.Error())
 					loop = false
 					break
 				}
+
 				if v.(int64) == 1 {
-					count -= 1
+					atomic.AddInt64(&count, 1)
+					break
 				}
 
-				failCount += 1
-				if failCount >= maxCount {
+				if failCount >= retryCount {
 					loop = false
 					break
 				}
+				atomic.AddInt64(&failCount, 1)
 			}
 		}
 
