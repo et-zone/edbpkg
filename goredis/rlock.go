@@ -16,8 +16,9 @@ import (
 var mutx = sync.Mutex{}
 
 const (
-	maxCount = 10
-	Spe      = "||"
+	maxCount   = 10
+	retryCount = 2
+	Spe        = "||"
 )
 const (
 	luaLock   = "if redis.call('setnx',KEYS[1],ARGV[1]) == 1 then redis.call('expire',KEYS[1],ARGV[2]) return 1 else return 0 end"
@@ -85,6 +86,7 @@ func (m *Mutex) LockRenewal(ctx context.Context, key string) (lock bool, val str
 
 	if v.(int64) == 1 {
 		m.watch(ctx, key, val)
+		//fmt.Println(key)
 		return true, "", nil
 	}
 	return false, "", nil
@@ -108,6 +110,7 @@ func (m *Mutex) UnLockRenewal(ctx context.Context, key, val string) (bool, error
 
 func (m *Mutex) watch(ctx context.Context, key, val string) {
 	m.chMap[key] = make(chan struct{})
+
 	go func(ch chan struct{}) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -150,10 +153,11 @@ func (m *Mutex) watch(ctx context.Context, key, val string) {
 				}
 				if v.(int64) == 1 {
 					count -= 1
+					break
 				}
 
 				failCount += 1
-				if failCount >= maxCount {
+				if failCount > retryCount {
 					loop = false
 					break
 				}
